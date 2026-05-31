@@ -1,112 +1,143 @@
-# Homework 1: Pytorch tutorial
-**Due Date: 05.03.26 23:59 CET**
-**Needs to be solved individually. Gradescope checks for duplicate code.**
+# Homework 1: PyTorch Tutorial Cheat Sheet
 
-## Setup (uv) + Jupyter
+This README is a compact reminder of the important ideas from `ex1.ipynb` to `ex3.ipynb`.
 
-### 1) Create a virtual environment
-
-You may use any package manager. We demonstrate the setup with `uv`, an extremely fast Python package installer and manager: https://github.com/astral-sh/uv.
-
-From the repo root:
+## Setup
 
 ```bash
-# Create a virtual environment with Python 3.12
 uv venv --python 3.12
-
-# Activate the environment
-# On macOS/Linux:
-source .venv/bin/activate
-# On Windows:
-# .venv\Scripts\activate
-
-# Install dependencies
 uv pip install torch torchvision jupyter
 ```
 
-For an introduction on how to use jupyter notebooks, you may check this ressource: https://docs.jupyter.org/en/latest/
+All notebooks are in `src/`. Do not change function names or signatures because the autograder imports them directly.
 
-## Getting started
+## Exercise 1: Tensor Basics
 
-All exercises live in `src/`.
-Most of these exercises can be solved in very few/one line of code, you're free to use all of torch unless otherwise specified. Usually functions shouldn't change the dtype or device of a tensor. If you receive a dtype
-or device make sure to use it for your returned tensors.
+### Shapes and Broadcasting
 
-### Exercise 1: Tensor basics
+- Tensor shapes usually follow named conventions such as `B` batch size, `T` sequence length, `D` feature dimension, `H` attention heads, and `Dh` per-head dimension.
+- Broadcasting aligns dimensions from the right. A dimension can broadcast if sizes match or one side is `1`.
+- `keepdim=True` keeps reduced dimensions as size `1`, which makes later broadcasting easier.
 
-Start with **Exercise 1** here:
+```python
+x.mean(dim=1, keepdim=True)  # (B, 1, D), can broadcast back to (B, T, D)
+```
 
-- `src/ex1_tensor_basics/ex1.ipynb`
+### Vectorization
 
-Open the notebook, read the short explanations, and **fill in all `TODO`s** in the provided functions.  
-Please **do not change function names or signatures**, since the autograder imports these functions directly.
+- Prefer tensor ops over Python loops: `torch.cat`, `torch.stack`, `torch.where`, `scatter_add`, `one_hot`, and reductions.
+- `repeat` copies data. `expand` creates a broadcasted view and only works when expanding size-1 dimensions.
+- Masks are usually boolean tensors. Decide and remember the convention: sometimes `True` means keep, sometimes `True` means invalid.
 
-### Exercise 2: PyTorch core
+### Attention Shapes
 
-Continue on with **Exercise 2** here:
+- Attention scores often have shape `(B, H, T, T)`.
+- Value vectors often have shape `(B, H, T, Dh)`.
+- Causal masks stop tokens from attending to future tokens.
 
-- `src/ex2_pytorch_core/ex2.ipynb`
+```python
+scores = torch.einsum("bhid,bhjd->bhij", q, k)
+out = torch.einsum("bhij,bhjd->bhid", weights, v)
+```
 
-Again: Open the notebook, read the short explanations, and **fill in all `TODO`s** in the provided functions.
-Please **do not change function names or signatures**, since the autograder imports these functions directly.
+## Exercise 2: PyTorch Core
 
-### Exercise 3: Neural networks
+### Autograd
 
-Then complete **Exercise 3** here:
+- `.backward()` computes gradients and stores them in leaf tensors' `.grad`.
+- `torch.autograd.grad(...)` returns gradients directly and does not automatically fill `.grad`.
+- Gradients accumulate, so reset them between training steps.
 
-- `src/ex3_neural_networks/ex3.ipynb`
+```python
+optimizer.zero_grad()
+loss.backward()
+optimizer.step()
+```
 
-Again: Open the notebook, read the short explanations, and **fill in all `TODO`s** in the provided functions.
-Please **do not change function names or signatures**, since the autograder imports these functions directly.
+- Use `detach().clone().requires_grad_(True)` when you want a fresh local tensor for gradient computation.
+- Use `torch.no_grad()` for setup or parameter updates that should not be tracked by autograd.
 
-**Important**: The MNIST classification exercise in ex3 has the additional deliverable of adding a plot of your training and test loss curves to your PowerPoint/slides that you're presenting in your video submission (more details on the video under **2. Assignment submission**). Do not forget to do that! You're welcome to use any plotting utility of your choice.
+### Dataloading
 
-### Exercise 4: GLU
+- A `Dataset` needs `__len__` and `__getitem__`.
+- A `DataLoader` handles batching, shuffling, and optional custom collation.
+- For variable-length sequences, pad to `T_max` and keep a `padding_mask`.
 
-Finally complete **Exercise 4** here:
+### Optimizers
 
-- `src/ex4_glu/ex4.ipynb`
+- Optimizers update parameters using gradients stored in `param.grad`.
+- AdamW keeps state per parameter:
+  - `m`: moving average of gradients
+  - `v`: moving average of squared gradients
+  - `t`: step count
+- In-place methods end with `_`, for example `mul_`, `add_`, `zero_`, and `uniform_`.
+- Optimizer updates should happen inside `torch.no_grad()` because they mutate parameters but are not part of the forward computation.
 
-For this exercise you will need to read the GLU paper that we provide in the exercise description in the notebook and we encourage you to have a look at the ViT paper that we also provide in that description.
-Then **fill in all `TODO`s** in the provided functions to complete this exercise.
-**NOTE**: In this exercise we additionally encourage you to think about reproducibility of your results and whether these results are statistically significant. We want you to touch on these points quickly in the video submission. Again, you're welcome to use any plotting utility of your choice for plotting the results.
-Please **do not change function names or signatures**, since the autograder imports these functions directly.
+### Training Step Pattern
 
-**Important**: The GLU exercise has the additional deliverable of adding your results and discussion to the video submission that you will upload. Please read all instructions carefully to not forget about this.
+```python
+model.train()
+optimizer.zero_grad()
+pred = model(x)
+loss = loss_fn(pred, y)
+loss.backward()
+optimizer.step()
+```
 
-## Submission
+## Exercise 3: Neural Networks
 
-### 1. Gradescope Registration
+### `nn.Module`
 
-To submit your work, you must be enrolled in the course on Gradescope.
+- Neural network layers are objects/classes that inherit from `nn.Module`.
+- Calling a module like `layer(x)` automatically calls `layer.forward(x)`.
+- Store trainable tensors as `nn.Parameter` so PyTorch registers them as model parameters.
 
-You should've received an email with gradescope details. Please follow the instructions in the email.
+### Linear Layer
 
-If you didn't get an email for gradescope (e.g. you're late enrolled to this course) write Alexey an email: agavryushin@ethz.ch
+`Linear(in_features, out_features)` computes:
 
-### 2. Assignment Submission
+```python
+y = x @ W.T + b
+```
 
-You will submit **all deliverables** (Code and Video) to the single assignment named **"Homework 1"**.
+- `weight` has shape `(out_features, in_features)`.
+- Each output feature has its own weights over all input features.
 
-1.  Navigate to the course page on Gradescope.
-2.  Click on the assignment **"Homework 1"**.
-3.  Drag and drop (or select) the following files from your computer:
-    - `ex1.ipynb`
-    - `ex2.ipynb`
-    - `ex3.ipynb`
-    - `ex4.ipynb`
-    - Your video file (`.mp4`)
-4.  Click **Upload**.
-5.  **Autograding:** A text box will appear showing the autograder's progress on your code. Wait for it to finish to see your preliminary score for the coding exercises.
-6.  **Manual Grading:** The teaching assistants will manually review your video after the deadline. Your final score will be updated to include points for the presentation components. Coding problems and the video each count for 50 of the achievable 100 points for this homework.
+### Embedding
 
-### Video submission
+- An embedding layer is a learnable lookup table.
+- `weight` has shape `(num_embeddings, embedding_dim)`.
+- Input token IDs select rows from this table.
 
-- ex3 and ex4 require you to show and discuss your results.
-- To do this we want you to submit a short video of no longer than 1min of you talking about your results in ex3 and ex4 walking us through the results that you created.
-- To show your results we encourage you to put plots that you created in ex3 and ex4 into a quick slide deck which you then walk us through on the short video. Please note we won't grade whether the submission is pretty or not but only whether your reasoning is correct.
-- Please make sure your results are visible while explaining (you may use any software to record your screen).
-- Please submit the video in `.mp4` format
-- You may focus your time in the video on ex4 and only briefly show that ex3 was completed correctly at the beginning.
-- We use the video to additionally grade your understanding of ex4. We look for correct reasoning instead of a clear yes or no answer. Please make sure to find the right arguments for your conclusions.
-- If you import utilities for plotting or other things please remove them before submitting to the autograder.
+```python
+embedding(idx) == embedding.weight[idx]
+```
+
+### Dropout
+
+- During training, dropout randomly zeroes activations with probability `p`.
+- Kept values are scaled by `1 / (1 - p)` so the expected activation stays similar.
+- During evaluation, dropout returns the input unchanged.
+
+### Normalization
+
+- `LayerNorm` normalizes over the last dimension using mean and variance, then applies learnable `weight` and `bias`.
+- `RMSNorm` normalizes by root mean square only and usually has a learnable scale.
+
+### MLPs, FFNs, and Residuals
+
+- `nn.Sequential` runs modules one after another.
+- An MLP is a stack of linear layers plus activations like `GELU`.
+- A transformer-style FFN usually maps `D -> 4D -> D`.
+- A residual wrapper returns `x + fn(x)`, which helps train deeper networks.
+
+### Classification
+
+- `nn.Flatten()` turns MNIST images from `(1, 28, 28)` into `784` features.
+- A classification head maps features to logits, one raw score per class.
+- Logits are not probabilities. Use cross entropy during training and `argmax` for prediction.
+
+```python
+pred = logits.argmax(dim=-1)
+```
+
