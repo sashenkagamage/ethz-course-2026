@@ -131,6 +131,8 @@ embedding(idx) == embedding.weight[idx]
 - A transformer-style FFN usually maps `D -> 4D -> D`.
 - A residual wrapper returns `x + fn(x)`, which helps train deeper networks.
 
+![MLP, FeedForward, and Residual diagram](MLP_ffn_Res.png)
+
 ### Classification
 
 - `nn.Flatten()` turns MNIST images from `(1, 28, 28)` into `784` features.
