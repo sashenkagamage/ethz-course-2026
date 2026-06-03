@@ -35,7 +35,20 @@ x.mean(dim=1, keepdim=True)  # (B, 1, D), can broadcast back to (B, T, D)
 - Value vectors often have shape `(B, H, T, Dh)`.
 - Causal masks stop tokens from attending to future tokens.
 
+### `torch.einsum`
+
+- `torch.einsum` lets you describe tensor operations by naming dimensions with letters.
+- Letters that appear in inputs but not in the output are summed over.
+- It is useful for linear projections, dot products, and attention operations.
+
 ```python
+# Linear projection: x is (B, T, D), W is (D, H), output is (B, T, H)
+y = torch.einsum("btd,dh->bth", x, W)
+
+# Pairwise dot product: x and y are (B, T, D), output is (B, T)
+dots = torch.einsum("btd,btd->bt", x, y)
+
+# Attention scores and weighted values
 scores = torch.einsum("bhid,bhjd->bhij", q, k)
 out = torch.einsum("bhij,bhjd->bhid", weights, v)
 ```
@@ -77,12 +90,14 @@ optimizer.step()
 
 ```python
 model.train()
-optimizer.zero_grad()
+optimizer.zero_grad()  # clear old gradients before computing new ones
 pred = model(x)
 loss = loss_fn(pred, y)
 loss.backward()
 optimizer.step()
 ```
+
+`zero_grad()` is needed because PyTorch gradients accumulate by default. Without it, each new `loss.backward()` would add gradients on top of the previous batch's gradients.
 
 ## Exercise 3: Neural Networks
 
