@@ -17,6 +17,7 @@ Make sure `python` and `pip` are available in PowerShell (test with `python --ve
 ---
 
 ## 1. Create & Activate a Virtual Environment
+
 From the root directory of the repository:
 **Linux (Bash):**
 `python3 -m venv mujoco`
@@ -39,17 +40,19 @@ For those who use the lab computers. The personal drive only has 10 GB sapce. Th
 
 Install the requirements and then the local `so101_gym` package in editable (development) mode — this automatically pulls in all required libraries:
 
-`pip install -r hw2_robot_control_mdps/requirements.txt` \
+`pip install -r hw2_robot_control_mdps/requirements.txt`   
 `pip install -e hw2_robot_control_mdps`
 
 ### What Gets Installed
 
-| Package             | Purpose                                        |
-|---------------------|-------------------------------------------------|
-| `mujoco`            | Physics simulation engine + built-in viewer     |
-| `gymnasium`         | RL environment API (used by `SO100TrackEnv`)    |
-| `stable-baselines3` | RL algorithms (PPO) for training & evaluation   |
-| `tensorboard`       | Training log visualization                      |
+
+| Package             | Purpose                                       |
+| ------------------- | --------------------------------------------- |
+| `mujoco`            | Physics simulation engine + built-in viewer   |
+| `gymnasium`         | RL environment API (used by `SO100TrackEnv`)  |
+| `stable-baselines3` | RL algorithms (PPO) for training & evaluation |
+| `tensorboard`       | Training log visualization                    |
+
 
 ---
 
@@ -61,6 +64,7 @@ Quick smoke test — this should open the MuJoCo viewer with the SO-100 robot ar
 `python scripts/interactive.py`
 
 If a 3D viewer window opens showing the robot, everything is working. You can interact with the environment using:
+
 - **Rotate:** Click and drag
 - **Zoom:** Scroll wheel
 - **Pan:** Shift + click and drag
@@ -71,11 +75,13 @@ Close the viewer window to exit.
 
 ## 4. Available Scripts
 
-| Script                    | Description                                  | Command                          |
-|---------------------------|----------------------------------------------|----------------------------------|
-| `scripts/interactive.py`  | Launch the MuJoCo viewer to inspect the robot | `python scripts/interactive.py`  |
-| `scripts/train.py`        | Train a PPO agent (16 parallel envs)          | `python scripts/train.py`        |
-| `scripts/evaluate_rand_targets.py`     | Evaluate a trained policy in the viewer       | `python scripts/evaluate_rand_targets.py`     |
+
+| Script                             | Description                                   | Command                                   |
+| ---------------------------------- | --------------------------------------------- | ----------------------------------------- |
+| `scripts/interactive.py`           | Launch the MuJoCo viewer to inspect the robot | `python scripts/interactive.py`           |
+| `scripts/train.py`                 | Train a PPO agent (16 parallel envs)          | `python scripts/train.py`                 |
+| `scripts/evaluate_rand_targets.py` | Evaluate a trained policy in the viewer       | `python scripts/evaluate_rand_targets.py` |
+
 
 ---
 
@@ -86,18 +92,21 @@ Either in real-time or after training is finished, you can visualize metrics wit
 **Linux & Windows:**
 `tensorboard --logdir logs/ --port 6006`
 
-Then open http://localhost:6006 in your browser.
+Then open [http://localhost:6006](http://localhost:6006) in your browser.
 
 ---
 
 ## Troubleshooting
 
-| Problem | Fix |
-|---------|-----|
-| `ModuleNotFoundError: No module named 'mujoco'` | Make sure your venv is activated and you ran `pip install -r requirements.txt`. |
-| MuJoCo viewer doesn't open / EGL errors *(Linux)* | Install Mesa/EGL drivers: `sudo apt install libegl1-mesa-dev libgl1-mesa-dri libglvnd-dev` |
-| `ERROR: could not create window` *(Linux)* | `export LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libstdc++.so.6` |
-| Viewer window is black *(Windows)* | Update your system GPU drivers. |
-| `ModuleNotFoundError: No module named 'env'` | Run scripts from the `hw2_so100_tutorial/` directory, or make sure `PYTHONPATH=.` is set. Also check you ran `pip install -e .` |
-| `python` not found *(Windows)* | Use `python3` instead, or add Python to your system PATH. |
-| `pip install` fails *(Windows)* | Make sure the venv is activated (`.\mujoco\Scripts\Activate.ps1`). |
+
+| Problem                                           | Fix                                                                                                                             |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `ModuleNotFoundError: No module named 'mujoco'`   | Make sure your venv is activated and you ran `pip install -r requirements.txt`.                                                 |
+| MuJoCo viewer doesn't open / EGL errors *(Linux)* | Install Mesa/EGL drivers: `sudo apt install libegl1-mesa-dev libgl1-mesa-dri libglvnd-dev`                                      |
+| `ERROR: could not create window` *(Linux)*        | `export LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libstdc++.so.6`                                                                    |
+| Viewer window is black *(Windows)*                | Update your system GPU drivers.                                                                                                 |
+| `ModuleNotFoundError: No module named 'env'`      | Run scripts from the `hw2_so100_tutorial/` directory, or make sure `PYTHONPATH=.` is set. Also check you ran `pip install -e .` |
+| `python` not found *(Windows)*                    | Use `python3` instead, or add Python to your system PATH.                                                                       |
+| `pip install` fails *(Windows)*                   | Make sure the venv is activated (`.\mujoco\Scripts\Activate.ps1`).                                                              |
+
+
