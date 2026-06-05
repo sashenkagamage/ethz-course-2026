@@ -24,7 +24,7 @@ def generate_quintic_spline_waypoints(start, end, num_points):
     return start + (end - start) * f_s[:, None]
 
 
-def pid_control(tracking_error_history, timestep, Kp=150.0, Ki=0.0, Kd=0.01):
+def pid_control(tracking_error_history, timestep, Kp=150.0, Ki=0.0, Kd=0.1):
     """
     TODO:
     Compute the PID control signal based on the tracking error history.

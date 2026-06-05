@@ -90,8 +90,8 @@ def compute_reward(ee_tracking_error: float) -> float:
     Returns:
     - reward: float. The computed reward based on the tracking error. Dimensionality: scalar
     """
-    dense_reward = np.exp(-2 * ee_tracking_error)
-    sparse_reward = 1.0 if ee_tracking_error < 0.005 else 0.0
+    dense_reward = np.exp(-2* ee_tracking_error)
+    sparse_reward = 1.0 if ee_tracking_error < 0.003 else 0.0
     return dense_reward + sparse_reward
 
 

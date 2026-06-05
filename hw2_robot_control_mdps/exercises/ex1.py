@@ -2,7 +2,28 @@ import numpy as np
 import mujoco
 
 
-def get_lemniscate_keypoint(t, a=0.2):
+'''def get_lemniscate_keypoint(t, a = 0.2):
+    """
+    TODO:
+    Generate a set of keypoints using Lemniscate of Bernoulli (infinity sign) in the Y-Z plane.
+        The formula is: y = a * cos(t) / (1 + sin(t)^2)
+                        z = a * cos(t) * sin(t) / (1 + sin(t)^2)
+    For interest, you can learn about Lemniscate of Bernoulli on wikipedia: https://en.wikipedia.org/wiki/Lemniscate_of_Bernoulli
+    
+    Args:
+        t (float or np.ndarray): Time scales from 0 to 2π to generate keypoints.
+        a (float): Scaling factor for the size of the lemniscate.
+        
+    Returns:
+        y (float or np.ndarray): y coordinates of the keypoint on the lemniscate.
+        z (float or np.ndarray): z coordinates of the keypoint on the lemniscate.
+    """
+    denominator = 1 + np.sin(t) ** 2
+    y = a * np.cos(t) / denominator
+    z = a * np.cos(t) * np.sin(t) / denominator
+    return y, z'''
+
+def get_lemniscate_keypoint(t, a = 0.2):
     """
     TODO:
     Generate a set of keypoints using Lemniscate of Bernoulli (infinity sign) in the Y-Z plane.
@@ -47,7 +68,7 @@ def build_keypoints(count=16, width=0.25, x_offset=0.3, z_offset=0.25):
     return np.stack((x, y, z + z_offset), axis=1) #similar return np.array([x, y, z + z_offset]).T since we need the transpose for (count, 3)
 
 def ik_track(model, data, site_name, target_pos,
-             damping=1e-3, pos_gain=2.0, dt=0.1, max_iters=2000):
+             damping=1e-3, pos_gain=2.0, dt=0.2, max_iters=2000):
     """TODO:
     Implement an IK tracking function that computes the joint configuration to reach a target end-effector position. We ignore orientation tracking for simplicity.
     The function should iteratively update the joint configuration using the Jacobian of the end-effector until it reaches the target within a specified tolerance 
