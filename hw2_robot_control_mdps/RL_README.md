@@ -2,6 +2,50 @@
 
 This note explains the role of reinforcement learning (RL) in this homework and how it differs from the inverse kinematics (IK) methods used earlier.
 
+### Exercise 1: Keypoints + Inverse Kinematics (`exercises/ex1.py`)
+
+1. Generate keypoints on a desired path (e.g. lemniscate in the Y–Z plane).
+2. Build 3D keypoints in workspace (`build_keypoints`).
+3. Use **inverse kinematics** (`ik_track`) to find joint configurations for each target:
+   - Restore/store the original configuration
+   - Compute end-effector position and position error
+   - Compute the end-effector Jacobian
+   - Use damped least squares to update joint configuration and reduce error
+   - Return the target joint configuration
+
+This answers: **given a target position, what joint angles should the robot use?**
+
+It is geometric, open-loop planning. It does not use rewards, observations, or PPO.
+
+Used in scripts such as `scripts/inverse_kinematics.py` and as input to Exercise 2.
+
+### Exercise 2: Trajectory + PID (`exercises/ex2.py`)
+
+1. Connect keypoints with **quintic splines** for smooth motion (`generate_quintic_spline_waypoints`).
+2. Use **PID control** (`pid_control`) to track the trajectory without overshooting.
+
+This answers: **how do we move smoothly along a path under physics, not just jump to one IK solution?**
+
+Still classical control: planned path + feedback controller. Used in `scripts/pid_control.py` and related scripts. PID gains (`Kp`, `Ki`, `Kd`) apply here.
+
+### Exercise 3: RL Environment (`exercises/ex3.py` + `env/so100_tracking_env.py`)
+
+1. **Reset robot** — default joint positions with noise (`reset_robot`).
+2. **Reset target** — random target near the base (`reset_target_position`).
+3. **Process action** — scale normalized policy output `[-1, 1]` to joint target positions (`process_action`).
+4. **Compute reward** — dense + sparse reward from tracking error (`compute_reward`).
+5. **Get observation** — state in the base frame for the policy (`get_obs`).
+
+The neural network policy outputs actions; MuJoCo simulates physics; PPO updates the policy from reward. This answers: **can the robot learn to reach random targets by trial and error?**
+
+### How the three exercises relate
+
+```text
+Exercise 1: where should the end-effector go?     -> keypoints + IK
+Exercise 2: how do we track a path smoothly?      -> quintic splines + PID
+Exercise 3: can a policy learn this by itself?    -> observations + reward + PPO
+```
+
 ## 1. Core Difference: IK vs RL
 
 ### Inverse Kinematics
