@@ -24,13 +24,13 @@ from hw3.dataset import (
 )
 from hw3.model import BasePolicy, build_policy
 
-# TODO: Any imports you want from torch or other libraries we use. Not allowed: libraries we don't use
+from torch.optim import Adam, Optimizer
+from torch.optim.lr_scheduler import CosineAnnealingLR
 from torch.utils.data import DataLoader, random_split
 
-# TODO: Choose your own hyperparameters!
-EPOCHS = ... 
-BATCH_SIZE = ...
-LR = ...
+EPOCHS = 100
+BATCH_SIZE = 64
+LR = 1e-3
 VAL_SPLIT = 0.1
 
 
@@ -46,8 +46,16 @@ def train_one_epoch(
 
     for batch in loader:
         states, action_chunks = batch
-        # TODO: Implement the training step for one batch here.
-        # This mostly: Get states and action_chunks onto the correct device, compute the loss, and step the optimizer.
+        states = states.to(device)
+        action_chunks = action_chunks.to(device)
+
+        optimizer.zero_grad()
+        loss = model.compute_loss(states, action_chunks)
+        loss.backward()
+        optimizer.step()
+
+        total_loss += loss.item()
+        n_batches += 1
 
     return total_loss / max(n_batches, 1)
 
@@ -64,7 +72,13 @@ def evaluate(
 
     for batch in loader:
         states, action_chunks = batch
-        # TODO: Implement the evaluation step for one batch here.
+        states = states.to(device)
+        action_chunks = action_chunks.to(device)
+
+        loss = model.compute_loss(states, action_chunks)
+
+        total_loss += loss.item()
+        n_batches += 1
 
     return total_loss / max(n_batches, 1)
 
@@ -74,6 +88,13 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Train action-chunking policy.")
     parser.add_argument(
         "--zarr", type=Path, required=True, help="Path to processed .zarr store."
+    )
+    parser.add_argument(
+        "--extra-zarr",
+        type=Path,
+        nargs="*",
+        default=None,
+        help="Additional processed .zarr stores to merge with --zarr.",
     )
     parser.add_argument(
         "--policy",
@@ -104,6 +125,21 @@ def main() -> None:
         "If omitted, uses the action_key attribute from the zarr metadata.",
     )
     parser.add_argument("--seed", type=int, default=42, help="Random seed.")
+    parser.add_argument(
+        "--epochs", type=int, default=EPOCHS, help="Number of training epochs."
+    )
+    parser.add_argument(
+        "--batch-size", type=int, default=BATCH_SIZE, help="Training batch size."
+    )
+    parser.add_argument(
+        "--lr", type=float, default=LR, help="Adam learning rate."
+    )
+    parser.add_argument(
+        "--val-split",
+        type=float,
+        default=VAL_SPLIT,
+        help="Fraction of data held out for validation (default: 0.1).",
+    )
     args = parser.parse_args()
 
     torch.manual_seed(args.seed)
@@ -141,17 +177,17 @@ def main() -> None:
     print(f"  state_dim={states.shape[1]}, action_dim={actions.shape[1]}")
 
     # ── train / val split ─────────────────────────────────────────────
-    n_val = max(1, int(len(dataset) * VAL_SPLIT))
+    n_val = max(1, int(len(dataset) * args.val_split))
     n_train = len(dataset) - n_val
     train_ds, val_ds = random_split(
         dataset, [n_train, n_val], generator=torch.Generator().manual_seed(args.seed)
     )
 
     train_loader = DataLoader(
-        train_ds, batch_size=BATCH_SIZE, shuffle=True, num_workers=0
+        train_ds, batch_size=args.batch_size, shuffle=True, num_workers=0
     )
     val_loader = DataLoader(
-        val_ds, batch_size=BATCH_SIZE, shuffle=False, num_workers=0
+        val_ds, batch_size=args.batch_size, shuffle=False, num_workers=0
     )
 
     # ── model ─────────────────────────────────────────────────────────
@@ -165,9 +201,8 @@ def main() -> None:
     n_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     print(f"Model parameters: {n_params:,}")
 
-    # TODO: implement an optimizer and scheduler
-    # optimizer =
-    # scheduler =
+    optimizer = Adam(model.parameters(), lr=args.lr)
+    scheduler = CosineAnnealingLR(optimizer, T_max=args.epochs)
 
     # ── training loop ─────────────────────────────────────────────────
     best_val = float("inf")
@@ -197,7 +232,7 @@ def main() -> None:
     save_path = ckpt_dir / save_name
     save_path.parent.mkdir(parents=True, exist_ok=True)
 
-    for epoch in range(1, EPOCHS + 1):
+    for epoch in range(1, args.epochs + 1):
         train_loss = train_one_epoch(model, train_loader, optimizer, device)
         val_loss = evaluate(model, val_loader, device)
         scheduler.step()
@@ -229,7 +264,7 @@ def main() -> None:
             tag = " ✓ saved"
 
         print(
-            f"Epoch {epoch:3d}/{EPOCHS} | "
+            f"Epoch {epoch:3d}/{args.epochs} | "
             f"train {train_loss:.6f} | val {val_loss:.6f}{tag}"
         )
 
