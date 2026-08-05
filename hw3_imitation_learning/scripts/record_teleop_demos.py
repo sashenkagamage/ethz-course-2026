@@ -95,6 +95,8 @@ class BaseCv2TeleopRecorder:
         self.writer = self._build_writer(xml_path, out_zarr, control_hz)
 
         self.renderer = mujoco.Renderer(self.model, height=render_h, width=render_w)
+        self.render_w = int(render_w)
+        self.render_h = int(render_h)
         self.window_name = window_name
 
         self.control_hz = float(control_hz)
@@ -193,8 +195,24 @@ class BaseCv2TeleopRecorder:
             print(f"Episode {self.episodes_done} saved on exit.")
             self.recording = False
 
+    def _show_frame(self, img_bgr: np.ndarray) -> None:
+        """Show *img_bgr*, scaling it to the current (user-resizable) window size."""
+        display = img_bgr
+        try:
+            _x, _y, win_w, win_h = cv2.getWindowImageRect(self.window_name)
+        except cv2.error:
+            win_w = win_h = 0
+        if win_w > 1 and win_h > 1 and (
+            win_w != img_bgr.shape[1] or win_h != img_bgr.shape[0]
+        ):
+            display = cv2.resize(img_bgr, (win_w, win_h), interpolation=cv2.INTER_AREA)
+        cv2.imshow(self.window_name, display)
+
     def run(self) -> None:
-        cv2.namedWindow(self.window_name, cv2.WINDOW_AUTOSIZE)
+        # WINDOW_NORMAL lets the user drag-resize; AUTOSIZE locks to the image size.
+        cv2.namedWindow(self.window_name, cv2.WINDOW_NORMAL)
+        # Composed layout is 2 cameras wide × 2 rows tall.
+        cv2.resizeWindow(self.window_name, self.render_w * 2, self.render_h * 2)
 
         last = time.perf_counter()
         try:
@@ -217,7 +235,7 @@ class BaseCv2TeleopRecorder:
                     mujoco.mj_step(self.model, self.data)
 
                 img = self._overlay_status(self._compose_views())
-                cv2.imshow(self.window_name, img)
+                self._show_frame(img)
         finally:
             self._finalize_on_exit()
             self.writer.flush()
