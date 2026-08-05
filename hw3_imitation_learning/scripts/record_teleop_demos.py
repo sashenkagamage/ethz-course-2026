@@ -209,10 +209,11 @@ class BaseCv2TeleopRecorder:
         cv2.imshow(self.window_name, display)
 
     def run(self) -> None:
-        # WINDOW_NORMAL lets the user drag-resize; AUTOSIZE locks to the image size.
+        # WINDOW_NORMAL is required for fullscreen / user resize.
         cv2.namedWindow(self.window_name, cv2.WINDOW_NORMAL)
-        # Composed layout is 2 cameras wide × 2 rows tall.
-        cv2.resizeWindow(self.window_name, self.render_w * 2, self.render_h * 2)
+        cv2.setWindowProperty(
+            self.window_name, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN
+        )
 
         last = time.perf_counter()
         try:
