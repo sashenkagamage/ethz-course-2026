@@ -29,7 +29,6 @@ class BasePolicy(nn.Module, metaclass=abc.ABCMeta):
         raise NotImplementedError
 
 
-# TODO: Students implement ObstaclePolicy here.
 class ObstaclePolicy(BasePolicy):
     """Predicts action chunks with an MSE loss.
 
@@ -37,30 +36,76 @@ class ObstaclePolicy(BasePolicy):
     (chunk_size * action_dim) and reshapes to (B, chunk_size, action_dim).
     """
 
-    def forward(self) -> torch.Tensor:
+    def __init__(
+        self,
+        state_dim: int,
+        action_dim: int,
+        chunk_size: int,
+        d_model: int = 256,
+        depth: int = 3,
+    ) -> None:
+        super().__init__(state_dim=state_dim, action_dim=action_dim, chunk_size=chunk_size)
+        self.d_model = d_model
+        self.depth = depth
+        out_dim = chunk_size * action_dim
+
+        layers: list[nn.Module] = [nn.Linear(state_dim, d_model), nn.ReLU()]
+        for _ in range(depth - 1):
+            layers.extend([nn.Linear(d_model, d_model), nn.ReLU()])
+        layers.append(nn.Linear(d_model, out_dim))
+        self.net = nn.Sequential(*layers)
+
+    def forward(self, state: torch.Tensor) -> torch.Tensor:
         """Return predicted action chunk of shape (B, chunk_size, action_dim)."""
-        raise NotImplementedError
+        flat = self.net(state)
+        return flat.view(-1, self.chunk_size, self.action_dim)
 
     def compute_loss(self, state: torch.Tensor, action_chunk: torch.Tensor) -> torch.Tensor:
-        raise NotImplementedError
+        pred = self.forward(state)
+        return nn.functional.mse_loss(pred, action_chunk)
 
     def sample_actions(self, state: torch.Tensor) -> torch.Tensor:
-        raise NotImplementedError
+        return self.forward(state)
 
 
-# TODO: Students implement MultiTaskPolicy here.
 class MultiTaskPolicy(BasePolicy):
-    """Goal-conditioned policy for the multicube scene."""
+    """Goal-conditioned policy for the multicube scene.
+
+    Same MLP backbone as ObstaclePolicy. Goal conditioning is provided by
+    concatenating ``state_goal`` / ``goal_pos`` (and cube states) into the
+    state vector via ``--state-keys`` at train/eval time.
+    """
+
+    def __init__(
+        self,
+        state_dim: int,
+        action_dim: int,
+        chunk_size: int,
+        d_model: int = 256,
+        depth: int = 3,
+    ) -> None:
+        super().__init__(state_dim=state_dim, action_dim=action_dim, chunk_size=chunk_size)
+        self.d_model = d_model
+        self.depth = depth
+        out_dim = chunk_size * action_dim
+
+        layers: list[nn.Module] = [nn.Linear(state_dim, d_model), nn.ReLU()]
+        for _ in range(depth - 1):
+            layers.extend([nn.Linear(d_model, d_model), nn.ReLU()])
+        layers.append(nn.Linear(d_model, out_dim))
+        self.net = nn.Sequential(*layers)
+
+    def forward(self, state: torch.Tensor) -> torch.Tensor:
+        """Return predicted action chunk of shape (B, chunk_size, action_dim)."""
+        flat = self.net(state)
+        return flat.view(-1, self.chunk_size, self.action_dim)
 
     def compute_loss(self, state: torch.Tensor, action_chunk: torch.Tensor) -> torch.Tensor:
-        raise NotImplementedError
+        pred = self.forward(state)
+        return nn.functional.mse_loss(pred, action_chunk)
 
     def sample_actions(self, state: torch.Tensor) -> torch.Tensor:
-        raise NotImplementedError
-
-    def forward(self) -> torch.Tensor:
-        """Return predicted action chunk of shape (B, chunk_size, action_dim)."""
-        raise NotImplementedError
+        return self.forward(state)
 
 
 PolicyType: TypeAlias = Literal["obstacle", "multitask"]
@@ -71,18 +116,24 @@ def build_policy(
     *,
     state_dim: int,
     action_dim: int,
-    # TODO,
+    chunk_size: int,
+    d_model: int = 256,
+    depth: int = 3,
 ) -> BasePolicy:
     if policy_type == "obstacle":
         return ObstaclePolicy(
-            action_dim=action_dim,
             state_dim=state_dim,
-            # TODO: Build with your chosen specifications
+            action_dim=action_dim,
+            chunk_size=chunk_size,
+            d_model=d_model,
+            depth=depth,
         )
     if policy_type == "multitask":
         return MultiTaskPolicy(
-            action_dim=action_dim,
             state_dim=state_dim,
-            # TODO: Build with your chosen specifications
+            action_dim=action_dim,
+            chunk_size=chunk_size,
+            d_model=d_model,
+            depth=depth,
         )
     raise ValueError(f"Unknown policy type: {policy_type}")

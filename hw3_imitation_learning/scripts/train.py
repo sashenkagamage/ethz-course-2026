@@ -140,6 +140,18 @@ def main() -> None:
         default=VAL_SPLIT,
         help="Fraction of data held out for validation (default: 0.1).",
     )
+    parser.add_argument(
+        "--d-model",
+        type=int,
+        default=256,
+        help="MLP hidden width (default: 256).",
+    )
+    parser.add_argument(
+        "--depth",
+        type=int,
+        default=3,
+        help="Number of MLP hidden layers (default: 3).",
+    )
     args = parser.parse_args()
 
     torch.manual_seed(args.seed)
@@ -195,7 +207,9 @@ def main() -> None:
         args.policy,
         state_dim=states.shape[1],
         action_dim=actions.shape[1],
-        # TODO: build with your desired specifications
+        chunk_size=args.chunk_size,
+        d_model=args.d_model,
+        depth=args.depth,
     ).to(device)
 
     n_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
@@ -257,6 +271,8 @@ def main() -> None:
                     "action_keys": args.action_keys,
                     "state_dim": int(states.shape[1]),
                     "action_dim": int(actions.shape[1]),
+                    "d_model": args.d_model,
+                    "depth": args.depth,
                     "val_loss": val_loss,
                 },
                 save_path,
