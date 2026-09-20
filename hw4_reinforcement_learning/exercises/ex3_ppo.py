@@ -81,7 +81,7 @@ class PPOAgent:
             action_std (torch.Tensor): std of Gaussian policy
         """
         with torch.inference_mode():
-            # TODO: Sample an action from the actor and compute the
+            #Sample an action from the actor and compute the
             # corresponding outputs.
             #
             # You should:
@@ -90,12 +90,12 @@ class PPOAgent:
             # 3. compute the action log probability
             # 4. read the current policy mean and std
             # 5. compute the state value from the critic
-            action = ...
-            action_clipped = ...
-            action_log_prob = ...
-            action_mu = ...
-            action_std = ...
-            value = ...
+            action = self.actor.act(obs)
+            action_clipped = torch.clamp(action, -1.0, 1.0)
+            action_log_prob = self.actor.get_actions_log_prob(action)
+            action_mu = self.actor.action_mean
+            action_std = self.actor.action_std
+            value = self.critic(obs)
 
         return action, action_clipped, value, action_log_prob, action_mu, action_std
 
@@ -119,7 +119,7 @@ class PPOAgent:
         Returns:
             torch.Tensor: scalar mean KL divergence
         """
-        # TODO: Implement the KL divergence between two Gaussian action distributions.
+        # Implement the KL divergence between two Gaussian action distributions.
         #
         # Hint:
         # For each action dimension:
@@ -130,8 +130,8 @@ class PPOAgent:
         # Then:
         # - sum over action dimensions
         # - average over the mini-batch
-        kl_per_dim = ...
-        kl_per_sample = ...
+        kl_per_dim = (torch.log(std_batch / old_std_batch) + (old_std_batch**2 + (old_mu_batch - mu_batch)**2) / (2 * std_batch**2) - 0.5).sum(dim=1)
+        kl_per_sample = kl_per_dim.sum() / self.mini_batch_size
     
         return kl_per_sample.mean()
         
