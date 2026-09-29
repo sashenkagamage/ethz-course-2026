@@ -119,7 +119,7 @@ class PPOAgent:
         Returns:
             torch.Tensor: scalar mean KL divergence
         """
-        # Implement the KL divergence between two Gaussian action distributions.
+        # COMPLETED: Implement the KL divergence between two Gaussian action distributions.
         #
         # Hint:
         # For each action dimension:
@@ -159,24 +159,24 @@ class PPOAgent:
         Returns:
             torch.Tensor: scaled surrogate loss
         """
-        # TODO: Implement PPO clipped surrogate objective.
+        # COMPLETED: Implement PPO clipped surrogate objective.
         #
         # Hint:
         # 1. ratio = exp(new_logp - old_logp)
         # 2. clipped_ratio = clamp(ratio, 1 - clip_ratio, 1 + clip_ratio)
         # 3. objective = min(ratio * adv, clipped_ratio * adv)
         # 4. PPO minimizes loss, so use the negative mean objective
-        ratio = ...
-        clipped_ratio = ...
-        surrogate_loss = ...
-        
+        ratio = torch.exp(logp_batch - old_logp_batch)
+        clipped_ratio = torch.clamp(ratio, 1 - self.clip_ratio, 1 + self.clip_ratio)
+        surrogate_loss = torch.min(ratio * adv_batch, clipped_ratio * adv_batch)
+        surrogate_loss = -surrogate_loss.mean()
         return self.surrogate_loss_coeff * surrogate_loss
 
     def compute_value_loss(self, val_batch, old_val_batch, ret_batch):
         """
         Compute value loss with clipping.
         """
-        # TODO: Implement PPO value loss with clipping.
+        # COMPLETED: Implement PPO value loss with clipping.
         #
         # Hint:
         # 1. Compute unclipped value loss: (val - ret)^2
@@ -185,10 +185,11 @@ class PPOAgent:
         # 3. Compute clipped loss
         # 4. Take max of clipped and unclipped loss
         # 5. Take mean and scale by value_loss_coeff
-        value_loss_unclipped = ...
-        value_clipped = ...
-        value_loss_clipped = ...
-        value_loss = ...
+        value_loss_unclipped = (val_batch - ret_batch)**2
+        value_clipped = old_val_batch + torch.clamp(val_batch - old_val_batch, -self.clip_ratio, self.clip_ratio)
+        value_loss_clipped = (value_clipped - ret_batch)**2
+        value_loss = torch.max(value_loss_unclipped, value_loss_clipped)
+        value_loss = value_loss.mean()
         
         return self.value_loss_coeff * value_loss
 
@@ -196,9 +197,10 @@ class PPOAgent:
         """
         Compute entropy regularization term.
         """
-        # TODO: Implement PPO entropy loss.
+        # COMPLETED: Implement PPO entropy loss.
         # Hint: PPO maximizes entropy
-        return ...
+        entropy_loss = -entropy_batch.mean()
+        return self.entropy_coeff * entropy_loss
 
     def mini_batch_generator(self, batch) -> Generator:
         """
@@ -255,7 +257,7 @@ class PPOAgent:
             val_batch = self.critic(obs_batch)
             entropy_batch = self.actor.entropy
 
-            # TODO: Complete one PPO update step.
+            # COMPLETED: Complete one PPO update step.
             #
             # You should:
             # 1. compute KL divergence between old and new policy
@@ -265,14 +267,14 @@ class PPOAgent:
             # 5. compute entropy loss
             # 6. sum them into the final loss
             # 7. zero grad, backward, gradient clipping, optimizer step
-            kl = ...
-            self.learning_rate = ...
+            kl = self.compute_kl_mean(old_mu_batch, old_std_batch, mu_batch, std_batch)
+            self.learning_rate = self.adjust_learning_rate(kl, self.learning_rate)
             for param_group in self.optimizer.param_groups:
                 param_group["lr"] = self.learning_rate
-            surrogate_loss = ...
-            value_loss = ...
-            entropy_loss = ...
-            loss = ...
+            surrogate_loss = self.compute_surrogate_loss(logp_batch, old_logp_batch, adv_batch)
+            value_loss = self.compute_value_loss(val_batch, old_val_batch, ret_batch)
+            entropy_loss = self.compute_entropy_loss(entropy_batch)
+            loss = surrogate_loss + value_loss + entropy_loss
 
             self.optimizer.zero_grad()
             loss.backward()

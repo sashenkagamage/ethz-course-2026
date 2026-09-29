@@ -128,12 +128,12 @@ class SACAgent:
             action (torch.Tensor): action within [-1, 1] due to tanh squashing
         """
         with torch.no_grad():
-            # TODO: Sample an action from the actor for environment interaction.
+            # COMPLETED: Sample an action from the actor for environment interaction.
             #
             # Hint:
             # - self.actor.act(obs) returns (action, log_prob)
             # - Here you only need the sampled action
-            action = ...
+            action = self.actor.act(obs)[0]
 
         return action
 
@@ -162,7 +162,7 @@ class SACAgent:
             torch.Tensor: critic loss
         """
         with torch.no_grad():
-            # TODO: Compute the target Q value for SAC.
+            # COMPLETED: Compute the target Q value for SAC.
             #
             # Hint:
             # 1. Sample next_action and next_logp from the current actor
@@ -172,13 +172,13 @@ class SACAgent:
             # 5. Build the Bellman target:
             #       rew + gamma * (1 - done) * q_next
             # 6. Compute the MSE losses against the target Q value for both Q-networks, average them to get critic_loss
-            next_action, next_logp = ...
-            q1_next, q2_next = ...
-            q_next = ...
-            target_q = ...
+            next_action, next_logp = self.actor.act(next_obs)
+            q1_next, q2_next = self.critic_target(next_obs, next_action)
+            q_next = torch.min(q1_next, q2_next)
+            target_q = rew + self.gamma * (1 - done) * (q_next - self.alpha * next_logp)
 
         q1_pred, q2_pred = self.critic(obs, act)
-        critic_loss = ...
+        critic_loss = F.mse_loss(q1_pred, target_q) + F.mse_loss(q2_pred, target_q)
 
         return critic_loss
 
@@ -197,16 +197,16 @@ class SACAgent:
         Returns:
             torch.Tensor: actor loss
         """
-        # TODO: Compute the SAC actor loss.
+        # COMPLETED: Compute the SAC actor loss.
         #
         # Hint:
         # 1. Evaluate both critics at (obs, act_new)
         # 2. Take the minimum Q-value
         # 3. Use the objective:
         #       mean(alpha * logp_new - q_new)
-        q1_new, q2_new = ...
-        q_new = ...
-        actor_loss = ...
+        q1_new, q2_new = self.critic(obs, act_new)
+        q_new = torch.min(q1_new, q2_new)
+        actor_loss = (self.alpha * logp_new - q_new).mean()
 
         return actor_loss
 
@@ -223,14 +223,14 @@ class SACAgent:
         Returns:
             torch.Tensor: alpha loss
         """
-        # TODO: Compute the SAC temperature loss.
+        # COMPLETED: Compute the SAC temperature loss.
         #
         # Hint:
         # - Use self.log_alpha, not self.alpha
         # - Detach (logp_new + target_entropy) so alpha update does not backprop
         #   through the actor
         # - Take the mean over the batch
-        alpha_loss = ...
+        alpha_loss = -self.log_alpha * (logp_new + self.target_entropy).detach().mean()
 
         return alpha_loss
 
@@ -239,7 +239,7 @@ class SACAgent:
         Polyak averaging for the target network:
             target <- tau * online + (1 - tau) * target
         """
-        # TODO: Soft-update the target critic parameters.
+        # COMPLETED: Soft-update the target critic parameters.
         #
         # Hint:
         # For each pair of parameters:
@@ -248,7 +248,7 @@ class SACAgent:
             for target_param, param in zip(
                 self.critic_target.parameters(), self.critic.parameters()
             ):
-                target_param.data.copy_( ... )
+                target_param.data.copy_(param.data)
 
     def update(self, batch: ReplayBatch) -> SACUpdateStats:
         """
@@ -270,7 +270,7 @@ class SACAgent:
         next_obs = batch.next_obs
         done = batch.done
 
-        # TODO: Complete one SAC update step.
+        # COMPLETED: Complete one SAC update step.   
         #
         # Hint:
         # 1. Compute critic_loss and update critic parameters
@@ -278,25 +278,25 @@ class SACAgent:
         # 3. Compute actor_loss and update actor parameters
         # 4. Compute alpha_loss and update log_alpha
         # 5. Soft-update the target critics
-        critic_loss = ...
+        critic_loss = self.compute_critic_loss(obs, act, rew, next_obs, done)
         self.critic_optimizer.zero_grad()
         critic_loss.backward()
         self.critic_optimizer.step()
 
-        act_new, logp_new = ...
+        act_new, logp_new = self.actor.act(obs)
 
-        actor_loss = ...
+        actor_loss = self.compute_actor_loss(obs, act_new, logp_new)
         self.actor_optimizer.zero_grad()
         actor_loss.backward()
         self.actor_optimizer.step()
 
-        alpha_loss = ...
+        alpha_loss = self.compute_alpha_loss(logp_new)
         self.alpha_optimizer.zero_grad()
         alpha_loss.backward()
         self.alpha_optimizer.step()
 
-        # TODO: Soft-update the target critics
-        ...
+        # COMPLETED: Soft-update the target critics
+        self.soft_update_targets()
 
         return SACUpdateStats(
             actor_loss=actor_loss.item(),
